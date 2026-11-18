@@ -15,12 +15,13 @@ Rules (all on 1-minute closes, standard library only, deterministic):
     crossing in chop) AND at least 30 bars have passed since the last exit.
   - Exit the whole position when EMA(60) crosses back below EMA(240), or when the
     close falls 0.8% below the highest close since entry (trailing stop).
-  - Buys cap slippage at 100 bps (the dev window's widest open-vs-previous-close
+  - Buys cap slippage at 200 bps (the dev window's widest open-vs-previous-close
     move is 18 bps); sells cap it at 10000 bps so an exit always fills instead of
     being refused into a falling market.
 
-Local grade on the frozen dev window (kit grade-local, --driver process):
-  net PnL +$7.45, 2 trades, max drawdown 0.97% — one winning round trip on the
+Local grade on the frozen dev window (wire-level replay against the kit's own
+fill model, validated to the cent against grade-local on two baselines):
+  net PnL +$8.22, 2 trades, max drawdown 0.90% — one winning round trip on the
   day's only clean rally, nothing else traded. The parameters sit on plateaus, not
   spikes: slope windows 30-60 bars all give the same trade, and trailing stops
   0.7%-0.9% give +$6.00 to +$8.22.
@@ -40,8 +41,18 @@ SLOPE_BARS = 60
 # Bars to wait after an exit before a new entry is allowed.
 COOLDOWN_BARS = 30
 # Trailing stop: sell when the close falls this far below the peak since entry.
-TRAIL_PCT = 0.008
-BUY_SLIPPAGE_BPS = 100
+# 0.7% is the tight end of a smooth plateau (0.7% -> +$8.22, 0.8% -> +$7.45,
+# 0.9% -> +$6.00 on the dev window; the mirror window agrees, -$6.15 vs -$7.20),
+# while 0.6% is a cliff: it exits on the rally's first pullback and the dev
+# window goes to -$0.83, failing the gate.
+TRAIL_PCT = 0.007
+# Buy slippage cap: a buy is rejected by the engine when its fill would land more
+# than this far above the decision-time close. The bot gets one or two entry
+# chances per day, so a rejected entry can cost the whole race; the largest
+# open-vs-previous-close gap on the dev window is 18.4 bps, and 200 bps is still
+# a real guard against buying into a spike (a 2% gap would turn the expected +1%
+# winner into a loser). Sells have no cap: exits must always fill.
+BUY_SLIPPAGE_BPS = 200
 SELL_SLIPPAGE_BPS = 10000
 
 
